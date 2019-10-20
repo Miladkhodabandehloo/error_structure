@@ -15,8 +15,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from best_practice.auth.views import CustomTokenObtainPairView, CustomTokenRefreshView
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("sample/", include("apps.sample.urls"))
+    path("sample/", include("apps.sample.urls")),
+    path('api/token/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/refresh/', CustomTokenRefreshView.as_view(), name='token_refresh'),
 ]
