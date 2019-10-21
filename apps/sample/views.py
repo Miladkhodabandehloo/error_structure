@@ -6,10 +6,9 @@ from best_practice.errors import APIException
 
 
 class SampleApiView(APIView):
-    permission_classes = (IsAuthenticated,)
+    # permission_classes = (IsAuthenticated,)
 
     def post(self, request):
-        # raise APIException.authorization()
         serializer = SomeSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(data=["some_data"])
