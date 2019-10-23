@@ -1,5 +1,5 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
-from ..utils import use_custom_error
+from ..utils.error_utils import use_custom_error
 
 
 @use_custom_error

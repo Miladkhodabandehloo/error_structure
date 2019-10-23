@@ -2,7 +2,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .serializers import SomeSerializer, NoteSerializer
-from best_practice.errors import APIException
+from best_practice.utils.error_utils import APIException
 
 
 class SampleApiView(APIView):

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .errors import Error, APIException, ErrorSpec
+from .error_utils import Error, ErrorSpec, APIException
 
 
 class BaseSerializer(serializers.BaseSerializer):

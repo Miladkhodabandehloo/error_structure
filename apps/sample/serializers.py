@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Note
-from best_practice.utils import use_custom_error
+from best_practice.utils.error_utils import use_custom_error
 
 
 @use_custom_error

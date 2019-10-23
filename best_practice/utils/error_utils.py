@@ -2,6 +2,7 @@ from rest_framework.exceptions import APIException as DRFAPIException
 from rest_framework.views import exception_handler
 from rest_framework.response import Response
 from rest_framework.exceptions import ErrorDetail
+from .serializer_utils import BaseSerializer
 
 
 class APIException(DRFAPIException):
@@ -74,3 +75,11 @@ def custom_exception_handler(exc, context):
         ).response if not isinstance(exc, APIException) else response
     else:
         return APIException.make_api_exception_by_code(code=500).response
+
+
+def use_custom_error(cls):
+    class NEWCLS(cls, BaseSerializer):
+        pass
+
+    return NEWCLS
+
