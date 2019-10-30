@@ -1,6 +1,4 @@
-from rest_framework.exceptions import APIException as DRFAPIException
 from rest_framework.views import exception_handler
-from rest_framework.response import Response
 from rest_framework.exceptions import ErrorDetail
 
 
@@ -50,17 +48,17 @@ class ErrorSpec:
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc=exc, context=context)
+    error_response = dict(errors=[])
 
-    custom_errors = list()
-    if hasattr(exc, "fields") and hasattr(exc, "form_errors"):
+    if hasattr(exc, "form_fields") and hasattr(exc, "form_errors"):
         validation_specs = ErrorSpec.specs[400]
-        for field_name, obj in exc.fields.items():
-            custom_errors.append(Error(code=validation_specs["code"],
-                                       type=validation_specs["type"],
-                                       sub_type=error.code, parameter=dict(name=field_name, **obj._kwargs),
-                                       message=str(error)).pretty
-                                 for error in exc.form_errors.get(field_name, list()))
-        response.data = custom_errors
+        for field_name, obj in exc.form_fields.items():
+            error_response["errors"].extend(Error(code=validation_specs["code"],
+                                                  type=validation_specs["type"],
+                                                  sub_type=error.code, parameter=dict(name=field_name, **obj._kwargs),
+                                                  message=str(error)).pretty
+                                            for error in exc.form_errors.get(field_name, list()))
+        response.data = error_response
         return response
 
     if isinstance(exc.detail, ErrorDetail):
@@ -71,11 +69,11 @@ def custom_exception_handler(exc, context):
         sub_type = None
 
     if response.status_code and response.status_code in ErrorSpec.specs.keys():
-        custom_errors.append(Error.make_by_code(code=response.status_code,
-                                                message=message,
-                                                sub_type=sub_type).pretty)
+        error_response["errors"].append(Error.make_by_code(code=response.status_code,
+                                                           message=message,
+                                                           sub_type=sub_type).pretty)
     else:
-        custom_errors.append(Error.make_by_code(code=500).pretty)
+        error_response["errors"].append(Error.make_by_code(code=500).pretty)
 
-    response.data = custom_errors
+    response.data = error_response
     return response
