@@ -20,7 +20,7 @@ class CacheQuerySet(models.QuerySet):
         keys = cache.keys("%s_*" % self.model.cache_key())
         cache.delete_many(keys)
 
-    def cached_data(self, *args, **kwargs):
+    def get_or_create_cache(self, *args, **kwargs):
         query_hash = md5(str(self.query).encode()).hexdigest()
         key = "%s_FILTER_%s" % (self.model.cache_key(), query_hash)
         cached_objects = cache.get(key)
