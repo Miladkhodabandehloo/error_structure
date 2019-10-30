@@ -1,12 +1,10 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer, TokenRefreshSerializer
-from best_practice.utils.patterns import use_custom_error
+from ..utils.serializer_utils import DRFSerializer
 
 
-@use_custom_error
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer, DRFSerializer):
     pass
 
 
-@use_custom_error
-class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+class CustomTokenRefreshSerializer(TokenRefreshSerializer, DRFSerializer):
     pass

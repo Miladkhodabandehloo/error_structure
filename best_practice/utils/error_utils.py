@@ -4,35 +4,6 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ErrorDetail
 
 
-class APIException(DRFAPIException):
-    def __init__(self, errors, status_code=400):
-        self.status_code = status_code
-        self.detail = {"errors": [error.__dict__ for error in errors]}
-
-    @property
-    def response(self):
-        return Response(data=self.detail, status=self.status_code)
-
-    @staticmethod
-    def make_api_exception_by_code(code, message=None, sub_type=None):
-        specs = ErrorSpec.specs[code]
-        return APIException(status_code=specs["status_code"], errors=[
-            Error(
-                code=specs.get("code"),
-                type=specs.get("type"),
-                message=message or specs.get("message"),
-                sub_type=sub_type or specs.get("sub_type"))
-        ])
-
-    @staticmethod
-    def authorization_exception():
-        return APIException.make_api_exception_by_code(code=403)
-
-    @staticmethod
-    def authentication():
-        return APIException.make_api_exception_by_code(code=401)
-
-
 class Error:
     def __init__(self, code=None, type=None, sub_type=None,
                  parameter=None, message=None):
@@ -43,6 +14,28 @@ class Error:
             parameter["choices"] = [choice[0] for choice in parameter["choices"]]
         self.parameter = parameter
         self.message = message
+
+    @classmethod
+    def make_by_code(cls, code, message=None, sub_type=None):
+        specs = ErrorSpec.specs[code]
+        return cls(
+            code=specs.get("code"),
+            type=specs.get("type"),
+            message=message or specs.get("message"),
+            sub_type=sub_type or specs.get("sub_type")
+        )
+
+    @classmethod
+    def authorization_error(cls):
+        return cls.make_by_code(code=403)
+
+    @classmethod
+    def authentication(cls):
+        return cls.make_by_code(code=401)
+
+    @property
+    def pretty(self):
+        return self.__dict__
 
 
 class ErrorSpec:
@@ -57,24 +50,32 @@ class ErrorSpec:
 
 def custom_exception_handler(exc, context):
     response = exception_handler(exc=exc, context=context)
+
+    custom_errors = list()
+    if hasattr(exc, "fields") and hasattr(exc, "form_errors"):
+        validation_specs = ErrorSpec.specs[400]
+        for field_name, obj in exc.fields.items():
+            custom_errors.append(Error(code=validation_specs["code"],
+                                       type=validation_specs["type"],
+                                       sub_type=error.code, parameter=dict(name=field_name, **obj._kwargs),
+                                       message=str(error)).pretty
+                                 for error in exc.form_errors.get(field_name, list()))
+        response.data = custom_errors
+        return response
+
     if isinstance(exc.detail, ErrorDetail):
         message = exc.detail
         sub_type = exc.detail.code
-    elif isinstance(exc.detail, dict):
-        message = exc.detail.get("detail")
-        sub_type = exc.detail.get("code")
     else:
         message = None
         sub_type = None
+
     if response.status_code and response.status_code in ErrorSpec.specs.keys():
-        return APIException.make_api_exception_by_code(
-            code=response.status_code,
-            message=message,
-            sub_type=sub_type
-        ).response if not isinstance(exc, APIException) else response
+        custom_errors.append(Error.make_by_code(code=response.status_code,
+                                                message=message,
+                                                sub_type=sub_type).pretty)
     else:
-        return APIException.make_api_exception_by_code(code=500).response
+        custom_errors.append(Error.make_by_code(code=500).pretty)
 
-
-
-
+    response.data = custom_errors
+    return response
