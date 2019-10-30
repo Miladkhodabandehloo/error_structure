@@ -5,12 +5,10 @@ framework](https://www.django-rest-framework.org/ "django REST framework Home Pa
 ### Validation error response sample:
 You can raise validation error with this structure like this example:
  ```python
+from best_practice.utils.serializer_utils import DRFSerializer
 from rest_framework import serializers
-from best_practice.utils import use_custom_error
 
-
-@use_custom_error
-class SomeSerializer(serializers.Serializer):
+class SomeSerializer(DRFSerializer):
     some_field = serializers.IntegerField(min_value=1, max_value=10)
     some_choice_field = serializers.ChoiceField(choices=((1, "The One"), (2, "The Two")))
 ```
@@ -49,9 +47,9 @@ If you sent invalid date response would be like this:
 #### other error response samples:
 other errors can be created this way:
 ```python
-from best_practice.errors import APIException, Error
-raise APIException(status_code=403, errors=[
-            Error(code=403, type="AuthorizationError", message="Access Denied.")])
+from best_practice.utils.error_utils import ErrorResponse
+from rest_framework.exceptions import PermissionDenied
+raise PermissionDenied("Custom message.")
 ```
 ```json
 {
@@ -61,7 +59,7 @@ raise APIException(status_code=403, errors=[
             "sub_type": null,
             "type": "AuthorizationError",
             "parameter": null,
-            "message": "AccessDenied."
+            "message": "Custom message."
         }
     ]
 }
