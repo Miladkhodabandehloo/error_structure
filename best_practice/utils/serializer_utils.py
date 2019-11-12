@@ -7,8 +7,8 @@ class DRFSerializer(serializers.Serializer):
         try:
             super(DRFSerializer, self).is_valid(raise_exception=raise_exception)
         except ValidationError as exc:
-            exc.form_fields = self.fields
             exc.form_errors = self.errors
+            exc.form_data = self.data
             raise exc
 
 

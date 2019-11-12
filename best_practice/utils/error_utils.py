@@ -1,79 +1,55 @@
 from rest_framework.views import exception_handler
-from rest_framework.exceptions import ErrorDetail
+from rest_framework.exceptions import ErrorDetail, APIException
+import logging
+from rest_framework import status
+from rest_framework.response import Response
 
 
 class Error:
-    def __init__(self, code=None, type=None, sub_type=None,
-                 parameter=None, message=None):
-        self.code = code
-        self.sub_type = sub_type
-        self.type = type
-        if parameter is not None and "choices" in parameter.keys():
-            parameter["choices"] = [choice[0] for choice in parameter["choices"]]
-        self.parameter = parameter
+    def __init__(self, error_type, message, parameter=None):
+        self.error_type = error_type
         self.message = message
+        self.parameter = parameter
 
-    @classmethod
-    def make_by_code(cls, code, message=None, sub_type=None):
-        specs = ErrorSpec.specs[code]
-        return cls(
-            code=specs.get("code"),
-            type=specs.get("type"),
-            message=message or specs.get("message"),
-            sub_type=sub_type or specs.get("sub_type")
-        )
-
-    @classmethod
-    def authorization_error(cls):
-        return cls.make_by_code(code=403)
-
-    @classmethod
-    def authentication(cls):
-        return cls.make_by_code(code=401)
-
-    @property
-    def pretty(self):
-        return self.__dict__
+    ERROR_STATUS_GLOSSARY = {
+        status.HTTP_500_INTERNAL_SERVER_ERROR: dict(error_type="InternalError", message="Internal server error."),
+        status.HTTP_401_UNAUTHORIZED: dict(error_type="AuthenticationError", message="Authentication failed."),
+        status.HTTP_403_FORBIDDEN: dict(error_type="AuthorizationError", message="Access denied.")}
 
 
-class ErrorSpec:
-    specs = {
-        400: {"code": 400, "status_code": 400, "type": "ValidationError", "message": None},
-        403: {"code": 403, "status_code": 403, "type": "AuthorizationError", "message": "Access Denied."},
-        401: {"code": 401, "status_code": 401, "type": "AuthenticationError",
-              "message": "Authentication Failed."},
-        500: {"code": 500, "status_code": 500, "type": "UnknownInternalError", "message": "Unknown Error Occurred."}
-    }
+class ErrorResponse(Response):
+    def __init__(self, errors, *args, **kwargs):
+        super(ErrorResponse, self).__init__(*args, **kwargs)
+        self.errors = [errors] if not isinstance(errors, list) else errors
 
 
 def custom_exception_handler(exc, context):
-    response = exception_handler(exc=exc, context=context)
-    error_response = dict(errors=[])
-
-    if hasattr(exc, "form_fields") and hasattr(exc, "form_errors"):
-        validation_specs = ErrorSpec.specs[400]
-        for field_name, obj in exc.form_fields.items():
-            error_response["errors"].extend(Error(code=validation_specs["code"],
-                                                  type=validation_specs["type"],
-                                                  sub_type=error.code, parameter=dict(name=field_name, **obj._kwargs),
-                                                  message=str(error)).pretty
-                                            for error in exc.form_errors.get(field_name, list()))
-        response.data = error_response
+    if hasattr(exc, "form_data") and hasattr(exc, "form_errors"):
+        errors = list()
+        for field_name, validation_errors in exc.form_errors.items():
+            errors.extend([
+                Error(error_type="ValidationError",
+                      message=str(error),
+                      parameter=dict(name=field_name, sent_data=exc.form_data.get(field_name))
+                      ) for error in validation_errors
+            ])
+        response = ErrorResponse(errors=errors, status=status.HTTP_400_BAD_REQUEST)
         return response
 
-    if isinstance(exc.detail, ErrorDetail):
-        message = exc.detail
-        sub_type = exc.detail.code
-    else:
-        message = None
-        sub_type = None
+    if hasattr(exc, "status_code"):
+        if exc.status_code in Error.ERROR_STATUS_GLOSSARY.keys():
+            message = exc.detail if hasattr(exc, "detail") and isinstance(exc.detail, ErrorDetail) else None
+            error_detail = Error.ERROR_STATUS_GLOSSARY[exc.status_code]
+            return ErrorResponse(
+                errors=Error(
+                    error_type=error_detail["error_type"],
+                    message=message or error_detail["message"]),
+                status=exc.status_code)
 
-    if response.status_code and response.status_code in ErrorSpec.specs.keys():
-        error_response["errors"].append(Error.make_by_code(code=response.status_code,
-                                                           message=message,
-                                                           sub_type=sub_type).pretty)
-    else:
-        error_response["errors"].append(Error.make_by_code(code=500).pretty)
-
-    response.data = error_response
-    return response
+    logger = logging.getLogger(__name__)
+    logger.exception(exc)
+    unknown_error_detail = Error.ERROR_STATUS_GLOSSARY[status.HTTP_500_INTERNAL_SERVER_ERROR]
+    return ErrorResponse(
+        errors=Error(error_type=unknown_error_detail["error_type"],
+                     message=unknown_error_detail["message"]),
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
