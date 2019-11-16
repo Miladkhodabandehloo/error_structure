@@ -6,7 +6,6 @@ import json
 class CustomRenderer(renderers.JSONRenderer):
 
     def render(self, data, accepted_media_type=None, renderer_context=None):
-
         renderer_context = renderer_context or {}
         indent = self.get_indent(accepted_media_type, renderer_context)
 
@@ -16,10 +15,11 @@ class CustomRenderer(renderers.JSONRenderer):
             separators = INDENT_SEPARATORS
 
         response = renderer_context.get("response")
-        if hasattr(response, "errors"):
+        if hasattr(response, "errors") and response.errors:
             output = {"data": None, "errors": [error.__dict__ for error in response.errors]}
         else:
             output = {"data": data, "errors": list()}
+        output["pagination"] = response.pagination if hasattr(response, "pagination") else None
 
         ret = json.dumps(
             output, cls=self.encoder_class,

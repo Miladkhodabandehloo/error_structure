@@ -116,7 +116,8 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
-STATIC_URL = '/static/'
+STATIC_URL = 'static/'
+STATIC_ROOT = "static/"
 APPEND_SLASH = False
 
 REST_FRAMEWORK = {
@@ -126,3 +127,5 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': "best_practice.utils.error_utils.custom_exception_handler",
     'DEFAULT_RENDERER_CLASSES': ("best_practice.utils.renderer_utils.CustomRenderer",),
 }
+
+
